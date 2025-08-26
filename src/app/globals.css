@@ -4,6 +4,15 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  /* ====== FONT ====== */
+  --font-sans: var(--font-arimo), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans",
+    "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+  --font-serif: var(--font-lora), ui-serif, Georgia, Cambria, "Times New Roman",
+    Times, serif;
+  --font-mono: var(--font-geist-mono, ui-monospace), SFMono-Regular, Menlo,
+    Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
