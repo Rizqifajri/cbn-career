@@ -2,10 +2,11 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { NavigationMenu } from "@/components/navigation-menu";
 import { Lora, Arimo } from "next/font/google";
+import { ReactQueryProvider } from "@/providers/query-client-providers";
 
 const lora = Lora({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"], 
+  weight: ["400", "500", "600", "700"],
   variable: "--font-lora",
 });
 
@@ -24,8 +25,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${lora.variable} ${arimo.variable}`}>
       <body className="font-sans antialiased">
-      
-        {children}
+        <ReactQueryProvider>
+          {children}
+        </ReactQueryProvider>
       </body>
     </html>
   );
