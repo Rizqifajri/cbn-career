@@ -1,95 +1,75 @@
 "use client"
 
-import type React from "react"
-
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Plus, X } from "lucide-react"
 
-type Job = {
-  id: string
-  branch: "Cretivox" | "OGS" | "Condfe" | (string & {})
-  title: string
-  location: string
-  role: string
-  type: string
-  image?: string
-  requirements: string[]
-}
-
-interface JobFormProps {
-  onAddJob: (job: Job) => void
-}
-
-export function JobForm({ onAddJob }: JobFormProps) {
+export function JobForm() {
   const [formData, setFormData] = useState({
     branch: "",
     title: "",
     location: "",
     role: "",
     type: "",
-    image: "",
   })
   const [requirements, setRequirements] = useState<string[]>([""])
+  const [file, setFile] = useState<File | null>(null)
+  const [submitting, setSubmitting] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setSubmitting(true)
 
-    if (!formData.branch || !formData.title || !formData.location || !formData.role || !formData.type) {
-      alert("Please fill in all required fields")
-      return
-    }
+    try {
+      const fd = new FormData()
+      fd.append("branch", formData.branch)
+      fd.append("title", formData.title)
+      fd.append("location", formData.location)
+      fd.append("role", formData.role)
+      fd.append("type", formData.type)
 
-    const filteredRequirements = requirements.filter((req) => req.trim() !== "")
-    if (filteredRequirements.length === 0) {
-      alert("Please add at least one requirement")
-      return
-    }
+      if (file) {
+        // ⬅️ FIX: gunakan key "image"
+        fd.append("image", file, file.name)
+      }
 
-    const newJob: Job = {
-      id: `${formData.branch.toLowerCase()}-${formData.title.toLowerCase().replace(/\s+/g, "-")}`,
-      branch: formData.branch as Job["branch"],
-      title: formData.title,
-      location: formData.location,
-      role: formData.role,
-      type: formData.type,
-      image: formData.image || undefined,
-      requirements: filteredRequirements,
-    }
+      // kirim requirements sebagai JSON string array
+      const filtered = requirements.map(r => r.trim()).filter(Boolean)
+      fd.append("requirements", JSON.stringify(filtered))
 
-    onAddJob(newJob)
+      const res = await fetch("/api/career", {
+        method: "POST",
+        body: fd, // jangan set Content-Type manual
+      })
 
-    // Reset form
-    setFormData({
-      branch: "",
-      title: "",
-      location: "",
-      role: "",
-      type: "",
-      image: "",
-    })
-    setRequirements([""])
-  }
+      const data = await res.json()
+      if (!res.ok) throw new Error(data?.message || "Failed to create job")
 
-  const addRequirement = () => {
-    setRequirements([...requirements, ""])
-  }
+      alert("Job posted successfully ✅")
+      console.log("Saved job:", data)
 
-  const removeRequirement = (index: number) => {
-    if (requirements.length > 1) {
-      setRequirements(requirements.filter((_, i) => i !== index))
+      // reset form
+      setFormData({ branch: "", title: "", location: "", role: "", type: "" })
+      setRequirements([""])
+      setFile(null)
+    } catch (err: any) {
+      alert(err.message || "Submit failed")
+    } finally {
+      setSubmitting(false)
     }
   }
 
-  const updateRequirement = (index: number, value: string) => {
-    const updated = [...requirements]
-    updated[index] = value
-    setRequirements(updated)
+  const addRequirement = () => setRequirements([...requirements, ""])
+  const removeRequirement = (i: number) =>
+    setRequirements(requirements.filter((_, idx) => idx !== i))
+  const updateRequirement = (i: number, value: string) => {
+    const copy = [...requirements]
+    copy[i] = value
+    setRequirements(copy)
   }
 
   return (
@@ -99,124 +79,112 @@ export function JobForm({ onAddJob }: JobFormProps) {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="branch">Branch *</Label>
-              <Select value={formData.branch} onValueChange={(value) => setFormData({ ...formData, branch: value })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select branch" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Cretivox">Cretivox</SelectItem>
-                  <SelectItem value="OGS">OGS</SelectItem>
-                  <SelectItem value="Condfe">Condfe</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="title">Job Title *</Label>
-              <Input
-                id="title"
-                value={formData.title}
-                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                placeholder="e.g. Video Editor"
-                required
-              />
-            </div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="location">Location *</Label>
-              <Input
-                id="location"
-                value={formData.location}
-                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                placeholder="e.g. Jakarta"
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="role">Role *</Label>
-              <Input
-                id="role"
-                value={formData.role}
-                onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                placeholder="e.g. Editor"
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="type">Type *</Label>
-              <Select value={formData.type} onValueChange={(value) => setFormData({ ...formData, type: value })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Fulltime">Fulltime</SelectItem>
-                  <SelectItem value="Freelance">Freelance</SelectItem>
-                  <SelectItem value="Contract">Contract</SelectItem>
-                  <SelectItem value="Internship">Internship</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
+          {/* Branch */}
           <div className="space-y-2">
-            <Label htmlFor="image">Image URL (Optional)</Label>
+            <Label>Branch *</Label>
             <Input
-              id="image"
-              value={formData.image}
-              onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-              placeholder="e.g. /hiring-poster.png"
+              value={formData.branch}
+              onChange={(e) =>
+                setFormData({ ...formData, branch: e.target.value })
+              }
+              required
             />
           </div>
 
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <Label>Requirements *</Label>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={addRequirement}
-                className="flex items-center gap-2 bg-transparent"
-              >
-                <Plus className="h-4 w-4" />
-                Add Requirement
-              </Button>
-            </div>
-
-            <div className="space-y-3">
-              {requirements.map((requirement, index) => (
-                <div key={index} className="flex gap-2">
-                  <Textarea
-                    value={requirement}
-                    onChange={(e) => updateRequirement(index, e.target.value)}
-                    placeholder={`Requirement ${index + 1}`}
-                    className="min-h-[60px]"
-                    rows={2}
-                  />
-                  {requirements.length > 1 && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => removeRequirement(index)}
-                      className="shrink-0 h-[60px]"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-              ))}
-            </div>
+          {/* Title */}
+          <div className="space-y-2">
+            <Label>Title *</Label>
+            <Input
+              value={formData.title}
+              onChange={(e) =>
+                setFormData({ ...formData, title: e.target.value })
+              }
+              required
+            />
           </div>
 
-          <Button type="submit" className="w-full" size="lg">
-            Post Job
+          {/* Location */}
+          <div className="space-y-2">
+            <Label>Location *</Label>
+            <Input
+              value={formData.location}
+              onChange={(e) =>
+                setFormData({ ...formData, location: e.target.value })
+              }
+              required
+            />
+          </div>
+
+          {/* Role */}
+          <div className="space-y-2">
+            <Label>Role *</Label>
+            <Input
+              value={formData.role}
+              onChange={(e) =>
+                setFormData({ ...formData, role: e.target.value })
+              }
+              required
+            />
+          </div>
+
+          {/* Type */}
+          <div className="space-y-2">
+            <Label>Type *</Label>
+            <Input
+              value={formData.type}
+              onChange={(e) =>
+                setFormData({ ...formData, type: e.target.value })
+              }
+              placeholder="Fulltime / Freelance / Internship"
+              required
+            />
+          </div>
+
+          {/* Image Upload */}
+          <div className="space-y-2">
+            <Label>Upload Image *</Label>
+            <Input
+              type="file"
+              accept="image/*"
+              onChange={(e) => setFile(e.target.files?.[0] || null)}
+              required
+            />
+            {file && (
+              <p className="text-sm text-gray-500">
+                Selected: {file.name} ({(file.size / 1024).toFixed(1)} KB)
+              </p>
+            )}
+          </div>
+
+          {/* Requirements */}
+          <div className="space-y-4">
+            <Label>Requirements *</Label>
+            {requirements.map((req, i) => (
+              <div key={i} className="flex gap-2">
+                <Textarea
+                  value={req}
+                  onChange={(e) => updateRequirement(i, e.target.value)}
+                  placeholder={`Requirement ${i + 1}`}
+                  required
+                />
+                {requirements.length > 1 && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => removeRequirement(i)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            ))}
+            <Button type="button" variant="outline" onClick={addRequirement}>
+              <Plus className="h-4 w-4" /> Add Requirement
+            </Button>
+          </div>
+
+          <Button type="submit" disabled={submitting} className="w-full">
+            {submitting ? "Posting..." : "Post Job"}
           </Button>
         </form>
       </CardContent>
