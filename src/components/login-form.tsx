@@ -17,22 +17,35 @@ export function LoginForm() {
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
 
+  // di LoginForm.tsx (hanya ganti handleSubmit)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
     setIsLoading(true)
 
-    // Simulate login process
-    setTimeout(() => {
-      if (email === "admin@example.com" && password === "admin123") {
-        // Successful login - redirect to dashboard
-        console.log("Login successful")
-      } else {
-        setError("Invalid email or password. Please try again.")
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      })
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data?.message || "Login failed")
       }
+
+      // success: cookie HttpOnly "session" di-set oleh server
+      const next = new URLSearchParams(window.location.search).get("next") || "/admin/dashboard"
+      window.location.replace(next)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (err: any) {
+      setError(err?.message || "Login error")
+    } finally {
       setIsLoading(false)
-    }, 1000)
+    }
   }
+
 
   return (
     <Card className="border-border shadow-lg">
@@ -53,7 +66,7 @@ export function LoginForm() {
               <Input
                 id="email"
                 type="email"
-                placeholder="admin@example.com"
+                placeholder="Enter your email account"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="pl-10 bg-input border-border focus:ring-ring"

@@ -23,6 +23,7 @@
     "gsap": "^3.13.0",
     "imagekit": "^6.0.0",
     "imagekitio-react": "^4.3.0",
+    "jose": "^6.1.0",
     "lucide-react": "^0.540.0",
     "next": "15.5.0",
     "react": "19.1.0",

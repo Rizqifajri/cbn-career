@@ -1,11 +1,47 @@
 "use client"
 
+import { useEffect, useMemo, useState } from "react"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { ArrowRight } from "lucide-react"
 import { Button } from "./ui/button"
 import { Input } from "./ui/input"
 import { cn } from "@/lib/utils"
 
 export const HeroSection = () => {
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+
+  // ambil nilai awal dari URL (?q=)
+  const initialQ = useMemo(() => searchParams.get("q") ?? "", [searchParams])
+  const [q, setQ] = useState(initialQ)
+
+  // kalau URL berubah (misal dari back/forward), sync ke input
+  useEffect(() => setQ(initialQ), [initialQ])
+
+  // debounce update URL saat user ngetik
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      const params = new URLSearchParams(searchParams.toString())
+      if (q.trim()) params.set("q", q.trim())
+      else params.delete("q")
+
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false })
+    }, 300) // 300ms debounce
+
+    return () => clearTimeout(handler)
+  }, [q, pathname, router, searchParams])
+
+  // hindari reload saat submit
+  function onSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    // optional: langsung push (tanpa debounce) ketika user tekan enter
+    const params = new URLSearchParams(searchParams.toString())
+    if (q.trim()) params.set("q", q.trim())
+    else params.delete("q")
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false })
+  }
+
   return (
     <section
       className="relative flex h-[500px] sm:h-[600px] lg:h-[650px] w-full items-center justify-center bg-cover bg-center overflow-hidden"
@@ -18,13 +54,15 @@ export const HeroSection = () => {
           Ready for a Career <br className="hidden sm:block" /> at CBN ?
         </h1>
 
-        <form className="relative mx-auto w-full max-w-[720px] group">
+        <form className="relative mx-auto w-full max-w-[720px] group" onSubmit={onSubmit}>
           <div className="relative mx-auto w-[92%] sm:w-4/5 md:w-full">
             <Input
               name="q"
               type="text"
               placeholder="Search Position..."
               aria-label="Search Position"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
               className={cn(
                 "h-12 rounded-full pl-5 pr-16 text-base sm:pr-20",
                 "bg-white/95 shadow-lg backdrop-blur-sm",

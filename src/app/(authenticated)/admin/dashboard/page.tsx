@@ -9,12 +9,11 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Trash2, Edit, Plus, Users, Eye, Upload, ImageIcon, Briefcase } from "lucide-react"
+import { Trash2, Edit, Plus, Users, Eye, Upload, ImageIcon, Briefcase, LogOut } from "lucide-react"
 
 import { useCareersQuery } from "@/hooks/queries/use-get-career"
 import { useDeleteCareerMutation } from "@/hooks/queries/use-delete-career"
-import { useAddCareerMutation } from "@/hooks/queries/use-add-career"
-import { useEditCareerMutation } from "@/hooks/queries/use-edit-career"
+import { link } from "fs"
 
 type Job = {
   id: string
@@ -26,6 +25,7 @@ type Job = {
   requirements: string[]
   applicants?: number
   image?: File
+  link: string
 }
 
 type Applicant = {
@@ -56,17 +56,20 @@ export default function Dashboard() {
     role: "",
     type: "",
     requirements: "",
+    link: "",
   })
-  
+
   // Image upload state
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string>("")
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isLoggingOut, setIsLoggingOut] = useState(false) 
 
   // fetch list
   const { data: apiData, isLoading, isError, error, refetch } = useCareersQuery()
   const normalizedJobs: Job[] = useMemo(() => {
     const arr = Array.isArray(apiData) ? apiData : apiData?.data ?? []
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return arr.map((j: any) => ({
       id: String(j.id),
       branch: j.branch ?? "",
@@ -81,6 +84,7 @@ export default function Dashboard() {
         : typeof j.requirements === "string"
           ? j.requirements.split(/\r?\n/).filter(Boolean)
           : [],
+      link: j.link ?? "",
     }))
   }, [apiData])
 
@@ -96,7 +100,7 @@ export default function Dashboard() {
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    
+
     const mb = file.size / (1024 * 1024)
     if (mb > MAX_FILE_MB) {
       alert(`File terlalu besar (${mb.toFixed(2)} MB). Maks ${MAX_FILE_MB}MB.`)
@@ -104,7 +108,7 @@ export default function Dashboard() {
     }
 
     setSelectedFile(file)
-    
+
     // Create preview URL
     const reader = new FileReader()
     reader.onload = (ev) => setPreviewUrl(ev.target?.result as string)
@@ -119,7 +123,7 @@ export default function Dashboard() {
       alert("Please fill in all required fields")
       return
     }
-    
+
     const requirementsArray = formData.requirements.split("\n").map((r) => r.trim()).filter(Boolean)
     if (!requirementsArray.length) {
       alert("Please add at least one requirement")
@@ -137,12 +141,12 @@ export default function Dashboard() {
 
       // Prepare FormData for file upload
       const formDataToSend = new FormData()
-      
+
       // Add file if selected
       if (selectedFile) {
         formDataToSend.append("file", selectedFile)
       }
-      
+
       // Add other form fields
       formDataToSend.append("branch", formData.branch)
       formDataToSend.append("title", formData.title)
@@ -150,14 +154,14 @@ export default function Dashboard() {
       formDataToSend.append("role", formData.role)
       formDataToSend.append("type", formData.type)
       formDataToSend.append("requirements", JSON.stringify(requirementsArray))
-      
+      formDataToSend.append("link", formData.link)
+
       // Add existing image URL if editing and no new file selected
       if (editingJob && !selectedFile && editingJob.image) {
         formDataToSend.append("image", editingJob.image)
       }
 
       let response: Response
-      let saved: any
 
       if (editingJob) {
         // Update existing job
@@ -178,7 +182,7 @@ export default function Dashboard() {
         throw new Error(errorData.message || `${editingJob ? 'Update' : 'Create'} failed`)
       }
 
-      saved = await response.json()
+      const saved = await response.json()
 
       if (editingJob) {
         // Update job in local state
@@ -186,17 +190,17 @@ export default function Dashboard() {
           prev.map((j) =>
             j.id === editingJob.id
               ? {
-                  ...j,
-                  branch: saved?.branch ?? formData.branch,
-                  title: saved?.title ?? formData.title,
-                  location: saved?.location ?? formData.location,
-                  role: saved?.role ?? formData.role,
-                  type: saved?.type ?? formData.type,
-                  image: saved?.image || saved?.image || editingJob.image,
-                  requirements: Array.isArray(saved?.requirements)
-                    ? saved.requirements
-                    : requirementsArray,
-                }
+                ...j,
+                branch: saved?.branch ?? formData.branch,
+                title: saved?.title ?? formData.title,
+                location: saved?.location ?? formData.location,
+                role: saved?.role ?? formData.role,
+                type: saved?.type ?? formData.type,
+                image: saved?.image || saved?.image || editingJob.image,
+                requirements: Array.isArray(saved?.requirements)
+                  ? saved.requirements
+                  : requirementsArray,
+              }
               : j,
           ),
         )
@@ -216,6 +220,7 @@ export default function Dashboard() {
           requirements: Array.isArray(saved?.requirements)
             ? saved.requirements
             : requirementsArray,
+          link: saved?.link ?? formData.link,
         }
         setJobs((prev) => [newJob, ...prev])
         alert("Job created successfully")
@@ -229,20 +234,32 @@ export default function Dashboard() {
         role: "",
         type: "",
         requirements: "",
+        link: "",
       })
       setSelectedFile(null)
       setPreviewUrl("")
-      
+
       // Reset file input
       const fileInput = document.getElementById("posterUpload") as HTMLInputElement
       if (fileInput) fileInput.value = ""
-      
+
       setCurrentView("jobs")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       const msg = err?.message || "Submit failed"
       alert(msg)
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  async function handleLogout() {
+    try {
+      setIsLoggingOut(true)
+      await fetch("/api/auth/logout", { method: "POST" })
+      window.location.replace("/auth/login")
+    } finally {
+      setIsLoggingOut(false)
     }
   }
 
@@ -255,8 +272,10 @@ export default function Dashboard() {
       role: job.role,
       type: job.type,
       requirements: job.requirements.join("\n"),
+      link: job.link,
     })
     // Set preview to existing image
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     //@ts-ignore
     setPreviewUrl(job.image || "")
     setSelectedFile(null)
@@ -269,6 +288,7 @@ export default function Dashboard() {
       await deleteCareer(id)
       setJobs((prev) => prev.filter((job) => job.id !== id))
       refetch() // Refresh from server
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       const msg = err?.response?.data?.message || err?.message || "Failed to delete job"
       alert(msg)
@@ -283,6 +303,7 @@ export default function Dashboard() {
       role: "",
       type: "",
       requirements: "",
+      link: "",
     })
     setSelectedFile(null)
     setPreviewUrl("")
@@ -325,6 +346,18 @@ export default function Dashboard() {
                 <Users className="h-4 w-4" />
                 Applicants
               </Button>
+
+              {/* Logout button */}
+              <Button
+                variant="outline"
+                onClick={handleLogout}
+                disabled={isLoggingOut}
+                className="bg-transparent flex items-center gap-2"
+                title="Logout"
+              >
+                <LogOut className="h-4 w-4" />
+                {isLoggingOut ? "Logging out..." : "Logout"}
+              </Button>
             </nav>
           </div>
         </div>
@@ -360,6 +393,7 @@ export default function Dashboard() {
               <Card>
                 <CardContent className="p-6">
                   <p className="text-sm text-red-600">
+                    No Jobs found.
                     Gagal memuat data dari API{error instanceof Error ? `: ${error.message}` : ""}.
                   </p>
                 </CardContent>
@@ -477,11 +511,11 @@ export default function Dashboard() {
                           <p className="text-xs text-muted-foreground">PNG, JPG</p>
                         </div>
                       )}
-                      <input 
-                        id="posterUpload" 
-                        type="file" 
-                        accept="image/*" 
-                        onChange={handleImageUpload} 
+                      <input
+                        id="posterUpload"
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageUpload}
                         className="hidden"
                         disabled={isSubmitting}
                       />
@@ -517,11 +551,11 @@ export default function Dashboard() {
 
                   <div>
                     <Label htmlFor="title">Job Title</Label>
-                    <Input 
-                      id="title" 
-                      value={formData.title} 
-                      onChange={(e) => setFormData((s) => ({ ...s, title: e.target.value }))} 
-                      required 
+                    <Input
+                      id="title"
+                      value={formData.title}
+                      onChange={(e) => setFormData((s) => ({ ...s, title: e.target.value }))}
+                      required
                       disabled={isSubmitting}
                     />
                   </div>
@@ -529,21 +563,21 @@ export default function Dashboard() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="location">Location</Label>
-                      <Input 
-                        id="location" 
-                        value={formData.location} 
-                        onChange={(e) => setFormData((s) => ({ ...s, location: e.target.value }))} 
-                        required 
+                      <Input
+                        id="location"
+                        value={formData.location}
+                        onChange={(e) => setFormData((s) => ({ ...s, location: e.target.value }))}
+                        required
                         disabled={isSubmitting}
                       />
                     </div>
                     <div>
                       <Label htmlFor="role">Role</Label>
-                      <Input 
-                        id="role" 
-                        value={formData.role} 
-                        onChange={(e) => setFormData((s) => ({ ...s, role: e.target.value }))} 
-                        required 
+                      <Input
+                        id="role"
+                        value={formData.role}
+                        onChange={(e) => setFormData((s) => ({ ...s, role: e.target.value }))}
+                        required
                         disabled={isSubmitting}
                       />
                     </div>
@@ -556,6 +590,17 @@ export default function Dashboard() {
                       value={formData.requirements}
                       onChange={(e) => setFormData((s) => ({ ...s, requirements: e.target.value }))}
                       rows={6}
+                      required
+                      disabled={isSubmitting}
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="link">Link</Label>
+                    <Input
+                      id="link"
+                      value={formData.link}
+                      onChange={(e) => setFormData((s) => ({ ...s, link: e.target.value }))}
                       required
                       disabled={isSubmitting}
                     />
