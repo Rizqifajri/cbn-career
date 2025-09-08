@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import Image from "next/image"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { ArrowRight } from "lucide-react"
 import { Button } from "./ui/button"
@@ -16,7 +17,7 @@ export const HeroSection = () => {
   const initialQ = useMemo(() => searchParams.get("q") ?? "", [searchParams])
   const [q, setQ] = useState(initialQ)
 
-  // kalau URL berubah (misal dari back/forward), sync ke input
+  // sync input saat URL berubah (back/forward)
   useEffect(() => setQ(initialQ), [initialQ])
 
   // debounce update URL saat user ngetik
@@ -25,31 +26,50 @@ export const HeroSection = () => {
       const params = new URLSearchParams(searchParams.toString())
       if (q.trim()) params.set("q", q.trim())
       else params.delete("q")
-
       router.replace(`${pathname}?${params.toString()}`, { scroll: false })
-    }, 300) // 300ms debounce
-
+    }, 300)
     return () => clearTimeout(handler)
   }, [q, pathname, router, searchParams])
 
-  // hindari reload saat submit
   function onSubmit(e: React.FormEvent) {
     e.preventDefault()
-    // optional: langsung push (tanpa debounce) ketika user tekan enter
     const params = new URLSearchParams(searchParams.toString())
     if (q.trim()) params.set("q", q.trim())
     else params.delete("q")
     router.replace(`${pathname}?${params.toString()}`, { scroll: false })
   }
 
-  return (
-    <section
-      className="relative flex h-[500px] sm:h-[600px] lg:h-[650px] w-full items-center justify-center bg-cover bg-center overflow-hidden"
-      style={{ backgroundImage: "url('/hero/cretivox-intern-2.png')" }}
-    >
-      <div className="absolute inset-0 bg-gradient-to-br from-white/70 via-white/60 to-white/50" />
+  // kontrol fade-in saat image selesai dimuat
+  const [imgLoaded, setImgLoaded] = useState(false)
 
-      <div className="relative z-10 mx-auto flex max-w-5xl flex-col items-center gap-6 px-4 text-center text-white">
+  return (
+    <section className="relative flex h-[500px] sm:h-[600px] lg:h-[650px] w-full items-center justify-center overflow-hidden">
+      {/* Fallback warna + gradient (langsung tampil) */}
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-white via-white/90 to-white/80" />
+
+      {/* Background hero pakai Next/Image: priority + blur placeholder + fade-in */}
+      <div className="absolute inset-0">
+        <Image
+          src="/hero/cretivox-intern-2.png"
+          alt="CBN Career hero background"
+          fill
+          priority
+          sizes="100vw"
+          // Blur kecil biar cepat muncul; ganti dataURL kalau punya LQIP lain
+          placeholder="blur"
+          blurDataURL="data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='10'%3E%3Crect width='16' height='10' fill='%23f3f4f6'/%3E%3C/svg%3E"
+          className={cn(
+            "object-cover transition-opacity duration-500",
+            imgLoaded ? "opacity-100" : "opacity-0"
+          )}
+          onLoad={() => setImgLoaded(true)}
+        />
+        {/* Overlay gradient agar teks tetap kontras */}
+        <div className="absolute inset-0 bg-gradient-to-br from-white/70 via-white/60 to-white/50" />
+      </div>
+
+      {/* Konten */}
+      <div className="relative z-10 mx-auto flex max-w-5xl flex-col items-center gap-6 px-4 text-center">
         <h1 className="font-serif font-semibold text-4xl leading-tight sm:text-5xl lg:text-6xl text-black">
           Ready for a Career <br className="hidden sm:block" /> at CBN ?
         </h1>
