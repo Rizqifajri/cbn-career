@@ -17,6 +17,7 @@ type Job = {
   type: string
   image?: string
   requirements: string[]
+  link: string
 }
 
 export function CardJobList() {
@@ -26,6 +27,7 @@ export function CardJobList() {
 
   const jobs: Job[] = useMemo(() => {
     if (!data) return []
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return data?.map((j: any) => ({
       id: String(j.id),
       branch: j.branch,
@@ -34,6 +36,7 @@ export function CardJobList() {
       role: j.role,
       type: j.type,
       image: j.posterImage || j.image || "", // API bisa pakai posterImage/image
+      link: j.link ?? "",                    // ⬅️ ambil link dari API
       requirements: Array.isArray(j.requirements)
         ? j.requirements
         : typeof j.requirements === "string"
@@ -42,33 +45,56 @@ export function CardJobList() {
     }))
   }, [data])
 
+  // ====== SEARCH (via ?q=) ======
+  const q = (search.get("q") ?? "").toLowerCase().trim()
+
+  const filteredJobs: Job[] = useMemo(() => {
+    if (!q) return jobs
+    const match = (s: string) => s.toLowerCase().includes(q)
+    return jobs.filter((j) => {
+      const haystack = [
+        j.title,
+        j.branch,
+        j.role,
+        j.type,
+        j.location,
+        ...(Array.isArray(j.requirements) ? j.requirements : []),
+      ].join(" ").toLowerCase()
+      return haystack.includes(q)
+    })
+  }, [jobs, q])
+
   // ===== UI tetap sama; handle loading/error ringan =====
   const [expandedMobile, setExpandedMobile] = useState<string | null>(null)
 
   const initial = useMemo(() => {
-    if (!jobs.length) return undefined
-    const q = search.get("job")
-    return jobs.find((j) => j.id === (q ?? "")) ?? jobs[0]
-  }, [search, jobs])
+    if (!filteredJobs.length) return undefined
+    const jobParam = search.get("job")
+    if (jobParam) {
+      return filteredJobs.find((j) => j.id === jobParam) ?? filteredJobs[0]
+    }
+    return filteredJobs[0]
+  }, [search, filteredJobs])
 
   // kalau belum ada data, selected bisa undefined — jaga guard
   const [selected, setSelected] = useState<Job | undefined>(initial)
 
   useEffect(() => {
-    if (!jobs.length) return
-    const q = search.get("job")
-    if (!q) {
-      // jika tidak ada query, pastikan selected diisi first job
-      setSelected((prev) => prev ?? jobs[0])
+    if (!filteredJobs.length) return
+    const jobParam = search.get("job")
+    if (!jobParam) {
+      // jika tidak ada query, pastikan selected diisi first filtered job
+      setSelected((prev) => (prev && filteredJobs.some((j) => j.id === prev.id) ? prev : filteredJobs[0]))
       return
     }
-    const found = jobs.find((j) => j.id === q)
+    const found = filteredJobs.find((j) => j.id === jobParam)
     if (found) setSelected(found)
-  }, [search, jobs])
+    else setSelected(filteredJobs[0])
+  }, [search, filteredJobs])
 
   function selectJob(job: Job) {
     setSelected(job)
-    router.replace(`?job=${job.id}`, { scroll: false })
+    router.replace(`?${new URLSearchParams({ ...(q ? { q } : {}), job: job.id }).toString()}`, { scroll: false })
   }
 
   function toggleMobileExpand(jobId: string) {
@@ -76,8 +102,18 @@ export function CardJobList() {
       setExpandedMobile(null)
     } else {
       setExpandedMobile(jobId)
-      const found = jobs.find((j) => j.id === jobId)
+      const found = filteredJobs.find((j) => j.id === jobId)
       if (found) selectJob(found)
+    }
+  }
+
+  function goToApply(link?: string) {
+    const url = (link || "").trim()
+    if (url) {
+      // buka di tab baru
+      window.open(url, "_blank", "noopener,noreferrer")
+    } else {
+      alert("Apply: link belum tersedia.")
     }
   }
 
@@ -97,27 +133,27 @@ export function CardJobList() {
     )
   }
 
-  if (isError || !jobs.length) {
+  if (isError || !jobs.length || !filteredJobs.length) {
     return (
-      <div className="container mx-auto grid w-full grid-cols-1 gap-8 px-4 mt-10 lg:grid-cols-2">
-        <div className="space-y-6">
-          <div className="border border-gray-300 rounded-md p-6">
-            <p className="text-sm text-gray-600">Tidak ada data pekerjaan atau terjadi kesalahan saat memuat.</p>
-          </div>
+      <div className="container mx-auto">
+        <div className="mt-24">
+          <p className="font-regular text-center text-foreground text-3xl font-serif">
+            Ups.. Sorry there is no job available
+          </p>
+          <Image src="/no-job.png" alt="404" width={500} height={500} className="w-auto h-auto mx-auto" />
         </div>
-        <aside className="space-y-4" />
       </div>
     )
   }
 
   // pastikan selected ada setelah data ready
-  const selectedJob = selected ?? jobs[0]
+  const selectedJob = selected ?? filteredJobs[0]
 
   return (
     <div className="container mx-auto grid w-full grid-cols-1 gap-8 px-4 mt-10 lg:grid-cols-2">
       {/* LEFT: List (UI sama) */}
       <div className="space-y-6">
-        {jobs.map((job) => {
+        {filteredJobs.map((job) => {
           const active = job.id === selectedJob.id
           const isExpanded = expandedMobile === job.id
 
@@ -183,8 +219,9 @@ export function CardJobList() {
                     }
                   }}
                   aria-label={isExpanded ? `Close ${job.title}` : `Open ${job.title}`}
-                  className={`-ml-px h-full w-full relative overflow-hidden bg-gray-100 text-gray-600 transition-all duration-300 ease-out focus:outline-none ${active ? "ring-1 ring-black" : ""
-                    }`}
+                  className={`-ml-px h-full w-full relative overflow-hidden bg-gray-100 text-gray-600 transition-all duration-300 ease-out focus:outline-none ${
+                    active ? "ring-1 ring-black" : ""
+                  }`}
                 >
                   <div className="absolute inset-0 bg-black transform translate-y-full transition-transform duration-300 ease-out group-hover:translate-y-0" />
                   {isExpanded ? (
@@ -242,7 +279,7 @@ export function CardJobList() {
                   <Button
                     size="lg"
                     className="inline-flex items-center gap-3 rounded-full px-8 py-4 text-lg"
-                    onClick={() => alert(`Apply: ${job.title}`)}
+                    onClick={() => goToApply(job.link)}  // ⬅️ pakai link
                   >
                     Apply Now <ArrowRight className="h-5 w-5" />
                   </Button>
@@ -299,7 +336,7 @@ export function CardJobList() {
         <Button
           size="lg"
           className="cursor-pointer flex justify-center items-center gap-3 rounded-full px-8 py-4 text-lg"
-          onClick={() => alert(`Apply: ${selectedJob.title}`)}
+          onClick={() => goToApply(selectedJob.link)}   // ⬅️ pakai link
         >
           Apply Now <ArrowRight className="h-5 w-5" />
         </Button>

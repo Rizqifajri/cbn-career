@@ -15,6 +15,7 @@ export function JobForm() {
     location: "",
     role: "",
     type: "",
+    link: "", // ⬅️ NEW: link form
   })
   const [requirements, setRequirements] = useState<string[]>([""])
   const [file, setFile] = useState<File | null>(null)
@@ -32,13 +33,18 @@ export function JobForm() {
       fd.append("role", formData.role)
       fd.append("type", formData.type)
 
+      // optional link
+      if (formData.link.trim()) {
+        fd.append("link", formData.link.trim())
+      }
+
       if (file) {
-        // ⬅️ FIX: gunakan key "image"
+        // ⬅️ gunakan key "image" agar diterima BE
         fd.append("image", file, file.name)
       }
 
       // kirim requirements sebagai JSON string array
-      const filtered = requirements.map(r => r.trim()).filter(Boolean)
+      const filtered = requirements.map((r) => r.trim()).filter(Boolean)
       fd.append("requirements", JSON.stringify(filtered))
 
       const res = await fetch("/api/career", {
@@ -47,29 +53,31 @@ export function JobForm() {
       })
 
       const data = await res.json()
-      if (!res.ok) throw new Error(data?.message || "Failed to create job")
+      if (!res.ok) throw new Error((data as { message?: string })?.message || "Failed to create job")
 
       alert("Job posted successfully ✅")
       console.log("Saved job:", data)
 
       // reset form
-      setFormData({ branch: "", title: "", location: "", role: "", type: "" })
+      setFormData({ branch: "", title: "", location: "", role: "", type: "", link: "" })
       setRequirements([""])
       setFile(null)
-    } catch (err: any) {
-      alert(err.message || "Submit failed")
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Submit failed"
+      alert(message)
     } finally {
       setSubmitting(false)
     }
   }
 
-  const addRequirement = () => setRequirements([...requirements, ""])
-  const removeRequirement = (i: number) =>
-    setRequirements(requirements.filter((_, idx) => idx !== i))
+  const addRequirement = () => setRequirements((prev) => [...prev, ""])
+  const removeRequirement = (i: number) => setRequirements((prev) => prev.filter((_, idx) => idx !== i))
   const updateRequirement = (i: number, value: string) => {
-    const copy = [...requirements]
-    copy[i] = value
-    setRequirements(copy)
+    setRequirements((prev) => {
+      const copy = [...prev]
+      copy[i] = value
+      return copy
+    })
   }
 
   return (
@@ -84,9 +92,7 @@ export function JobForm() {
             <Label>Branch *</Label>
             <Input
               value={formData.branch}
-              onChange={(e) =>
-                setFormData({ ...formData, branch: e.target.value })
-              }
+              onChange={(e) => setFormData({ ...formData, branch: e.target.value })}
               required
             />
           </div>
@@ -96,9 +102,7 @@ export function JobForm() {
             <Label>Title *</Label>
             <Input
               value={formData.title}
-              onChange={(e) =>
-                setFormData({ ...formData, title: e.target.value })
-              }
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
               required
             />
           </div>
@@ -108,9 +112,7 @@ export function JobForm() {
             <Label>Location *</Label>
             <Input
               value={formData.location}
-              onChange={(e) =>
-                setFormData({ ...formData, location: e.target.value })
-              }
+              onChange={(e) => setFormData({ ...formData, location: e.target.value })}
               required
             />
           </div>
@@ -120,9 +122,7 @@ export function JobForm() {
             <Label>Role *</Label>
             <Input
               value={formData.role}
-              onChange={(e) =>
-                setFormData({ ...formData, role: e.target.value })
-              }
+              onChange={(e) => setFormData({ ...formData, role: e.target.value })}
               required
             />
           </div>
@@ -132,11 +132,20 @@ export function JobForm() {
             <Label>Type *</Label>
             <Input
               value={formData.type}
-              onChange={(e) =>
-                setFormData({ ...formData, type: e.target.value })
-              }
+              onChange={(e) => setFormData({ ...formData, type: e.target.value })}
               placeholder="Fulltime / Freelance / Internship"
               required
+            />
+          </div>
+
+          {/* Link (optional) */}
+          <div className="space-y-2">
+            <Label>Link (optional)</Label>
+            <Input
+              type="url"
+              value={formData.link}
+              onChange={(e) => setFormData({ ...formData, link: e.target.value })}
+              placeholder="https://your-form-url.com"
             />
           </div>
 
@@ -168,11 +177,7 @@ export function JobForm() {
                   required
                 />
                 {requirements.length > 1 && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => removeRequirement(i)}
-                  >
+                  <Button type="button" variant="outline" onClick={() => removeRequirement(i)}>
                     <X className="h-4 w-4" />
                   </Button>
                 )}
@@ -182,7 +187,6 @@ export function JobForm() {
               <Plus className="h-4 w-4" /> Add Requirement
             </Button>
           </div>
-
           <Button type="submit" disabled={submitting} className="w-full">
             {submitting ? "Posting..." : "Post Job"}
           </Button>

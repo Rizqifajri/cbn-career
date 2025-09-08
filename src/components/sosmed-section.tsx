@@ -9,20 +9,20 @@ export const SosmedSection = () => {
       
       {/* Cretivox */}
       <Card className="flex flex-col sm:flex-row bg-black text-white p-6 justify-between items-center rounded-md">
-        <Image className="w-32 sm:w-48" src="/cretivox-white.png" width={400} height={400} alt="Cretivox Logo" />
+        <Image className="w-32" src="/cretivox-white.png" width={500} height={500} alt="Cretivox Logo" />
         <ul className="flex gap-6 text-3xl sm:text-4xl">
           <li>
-            <a href="https://instagram.com/cretivox.id" target="_blank">
+            <a href="https://www.instagram.com/cretivox/" target="_blank">
               <Instagram />
             </a>
           </li>
           <li>
-            <a href="https://linkedin.com" target="_blank">
+            <a href="https://www.linkedin.com/company/cretivox/" target="_blank">
               <Linkedin />
             </a>
           </li>
           <li>
-            <a href="https://youtube.com" target="_blank">
+            <a href="https://www.youtube.com/@Cretivox" target="_blank">
               <Youtube />
             </a>
           </li>
@@ -31,20 +31,20 @@ export const SosmedSection = () => {
 
       {/* OGS */}
       <Card className="flex flex-col sm:flex-row bg-[#86E553] text-white p-6 justify-between items-center rounded-md">
-        <h2 className="text-4xl sm:text-5xl font-bold text-center sm:text-left">OGS</h2>
+        <Image className="w-32" src="/logo/ogs-white.png" width={400} height={400} alt="OGS Logo" />
         <ul className="flex gap-6 text-3xl sm:text-4xl">
-          <li>
-            <a href="https://instagram.com/ogs.id" target="_blank">
+          <li> 
+            <a href="https://www.instagram.com/ogsmedia_/" target="_blank">
               <Instagram />
             </a>
           </li>
           <li>
-            <a href="https://linkedin.com" target="_blank">
+            <a href="https://www.linkedin.com/company/ogs-overon-gaming-syndicate/" target="_blank">
               <Linkedin />
             </a>
           </li>
           <li>
-            <a href="https://youtube.com" target="_blank">
+            <a href="https://www.youtube.com/@ogsmedia_" target="_blank">
               <Youtube />
             </a>
           </li>
@@ -53,20 +53,20 @@ export const SosmedSection = () => {
 
       {/* Condfe */}
       <Card className="flex flex-col sm:flex-row bg-[#BC9FCB] text-white p-6 justify-between items-center rounded-md">
-        <Image className="w-32 sm:w-48" src="/condfe-logo.png" width={400} height={400} alt="Cretivox Logo" />
+        <Image className="w-42 p-5" src="/condfe-logo.png" width={400} height={400} alt="Cretivox Logo" />
         <ul className="flex gap-6 text-3xl sm:text-4xl">
           <li>
-            <a href="https://instagram.com/condfe.id" target="_blank">
+            <a href="https://www.instagram.com/condfe/" target="_blank">
               <Instagram />
             </a>
           </li>
             <li>
-            <a href="https://linkedin.com" target="_blank">
+            <a href="https://www.linkedin.com/company/condfe/" target="_blank">
               <Linkedin />
             </a>
           </li>
           <li>
-            <a href="https://youtube.com" target="_blank">
+            <a href="https://www.youtube.com/@condfe" target="_blank">
               <Youtube />
             </a>
           </li>

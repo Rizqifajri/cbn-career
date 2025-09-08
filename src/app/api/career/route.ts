@@ -67,6 +67,7 @@ export async function POST(req: Request) {
     } catch {
       return NextResponse.json({ message: text }, { status: res.status })
     }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (err: any) {
     console.error("[career][POST] Error:", err)
     return NextResponse.json(
