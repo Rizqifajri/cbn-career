@@ -43,19 +43,24 @@ export const HeroSection = () => {
   const [imgLoaded, setImgLoaded] = useState(false)
 
   return (
-    <section className="relative flex h-[500px] sm:h-[600px] lg:h-[650px] w-full items-center justify-center overflow-hidden">
+    <section
+      className={cn(
+        "relative flex w-full items-center justify-center overflow-hidden",
+        // fallback h-screen, modern browser pakai h-[100dvh]
+        "h-screen md:h-[100dvh]"
+      )}
+    >
       {/* Fallback warna + gradient (langsung tampil) */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-white via-white/90 to-white/80" />
 
-      {/* Background hero pakai Next/Image: priority + blur placeholder + fade-in */}
+      {/* Background hero pakai Next/Image */}
       <div className="absolute inset-0">
         <Image
-          src="/hero/cretivox-intern-2.png"
+          src="/hero/cbn-rame.jpg"
           alt="CBN Career hero background"
           fill
           priority
           sizes="100vw"
-          // Blur kecil biar cepat muncul; ganti dataURL kalau punya LQIP lain
           placeholder="blur"
           blurDataURL="data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='10'%3E%3Crect width='16' height='10' fill='%23f3f4f6'/%3E%3C/svg%3E"
           className={cn(
@@ -64,13 +69,12 @@ export const HeroSection = () => {
           )}
           onLoad={() => setImgLoaded(true)}
         />
-        {/* Overlay gradient agar teks tetap kontras */}
-        <div className="absolute inset-0 bg-gradient-to-br from-white/70 via-white/60 to-white/50" />
+        <div className="absolute inset-0 bg-gradient-to-br from-black/70 via-black/60 to-black/50" />
       </div>
 
       {/* Konten */}
       <div className="relative z-10 mx-auto flex max-w-5xl flex-col items-center gap-6 px-4 text-center">
-        <h1 className="font-serif font-semibold text-4xl leading-tight sm:text-5xl lg:text-6xl text-black">
+        <h1 className="font-sans font-semibold text-4xl leading-tight sm:text-5xl lg:text-7xl text-white">
           Ready for a Career <br className="hidden sm:block" /> at CBN ?
         </h1>
 

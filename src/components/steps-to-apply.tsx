@@ -5,6 +5,7 @@ import { useEffect, useRef } from "react"
 import { Send, FileText, NotebookPen, Ear, Sparkles } from "lucide-react"
 import { gsap } from "gsap"
 import { ScrollTrigger } from "gsap/ScrollTrigger"
+import { InterviewHRIcon, InterviewManagerIcon, InterviewUserIcon } from "./icons"
 
 gsap.registerPlugin(ScrollTrigger)
 
@@ -21,9 +22,9 @@ type Props = {
 const DEFAULT_STEPS: Step[] = [
   { title: "Registration", icon: <Send className="h-5 w-5 sm:h-6 sm:w-6 lg:h-7 lg:w-7" /> },
   { title: "Administration", icon: <FileText className="h-5 w-5 sm:h-6 sm:w-6 lg:h-7 lg:w-7" /> },
-  { title: "HR Interview", icon: <NotebookPen className="h-5 w-5 sm:h-6 sm:w-6 lg:h-7 lg:w-7" /> },
-  { title: "User Interview", icon: <Ear className="h-5 w-5 sm:h-6 sm:w-6 lg:h-7 lg:w-7" /> },
-  { title: "Manager Interview", icon: <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 lg:h-7 lg:w-7" /> },
+  { title: "HR Interview", icon: <InterviewHRIcon className="h-5 w-5 sm:h-6 sm:w-6 lg:h-7 lg:w-7" /> },
+  { title: "User Interview", icon: <InterviewUserIcon className="h-5 w-5 sm:h-6 sm:w-6 lg:h-7 lg:w-7" /> },
+  { title: "Manager Interview", icon: <InterviewManagerIcon className="h-5 w-5 sm:h-6 sm:w-6 lg:h-7 lg:w-7" /> },
   { title: "Onboarding", icon: <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 lg:h-7 lg:w-7" /> },
 ]
 

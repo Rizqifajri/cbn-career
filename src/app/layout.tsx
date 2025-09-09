@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { NavigationMenu } from "@/components/navigation-menu";
 import { Lora, Arimo } from "next/font/google";
 import { ReactQueryProvider } from "@/providers/query-client-providers";
+
 
 const lora = Lora({
   subsets: ["latin"],
