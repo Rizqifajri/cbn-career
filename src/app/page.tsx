@@ -47,7 +47,6 @@ export default function Home() {
         </Suspense>
 
         <StepsToApply />
-        <SosmedSection />
         <Footer />
       </div>
     </section>
