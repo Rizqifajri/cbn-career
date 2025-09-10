@@ -80,7 +80,7 @@ const handleScrollToWork = (e: React.MouseEvent) => {
       <div className="container mx-4 sm:mx-8 lg:mx-24 xl:mx-auto flex h-[70px] w-full items-center justify-between px-4">
         {/* Logo */}
         <div className="flex items-center">
-          <Link href="/">
+          <Link href="https://cretivox.com">
             <Image
               src={(isScrolled || isContactPage) ? "/cretivox.png" : "/cretivox-white.png"}
               alt="CBN Logo"
