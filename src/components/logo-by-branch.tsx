@@ -11,8 +11,8 @@ type Props = {
 
 const LOGOS: Record<string, string> = {
   Cretivox: "/logo/CretivoxLogo.png",
-  OGS: "/logo/OGSLogo.png",
   Condfe: "/logo/CondfeLogo.png",
+  OGS: "/logo/OGSGreenLogo.png",
 }
 
 const DEFAULT_LOGO = "/logo/default.png"
