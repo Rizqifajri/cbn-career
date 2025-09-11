@@ -70,8 +70,12 @@ export default function JobFormCreate({ onSuccess }: Props) {
 
       toast.success("Job created successfully")
       onSuccess()
-    } catch (err: any) {
-      toast.error(err.message || "Create failed")
+    } catch (err) {
+      if (err instanceof Error) {
+        toast.error(err.message || "Create failed")
+      } else {
+        toast.error("Create failed")
+      }
     } finally {
       setIsSubmitting(false)
     }
