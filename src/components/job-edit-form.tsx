@@ -116,9 +116,13 @@ export default function JobFormEdit({ job, onSuccess }: Props) {
         setSelectedFile(null)
         onSuccess()
       },
-      onError: (err: any) => {
+      onError: (err: unknown) => {
+        if (err && typeof err === "object" && "message" in err) {
+          toast.error((err as { message?: string }).message || "Update failed")
+        } else {
+          toast.error("Update failed")
+        }
         console.error("Update error:", err)
-        toast.error(err.message || "Update failed")
       },
     })
   }

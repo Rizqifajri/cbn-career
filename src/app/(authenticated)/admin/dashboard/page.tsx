@@ -69,12 +69,12 @@ export default function Dashboard() {
   
   // PERBAIKAN: Langsung gunakan data dari API tanpa local state jobs
   const normalizedJobs: Job[] = useMemo(() => {
-    const arr = Array.isArray(apiData) ? apiData : (apiData?.data ?? [])
-    return arr.map((j: any) => ({
+    const arr = Array.isArray(apiData) ? apiData : (apiData?.data ?? []);
+    return arr.map((j: Record<string, unknown>) => ({
       id: String(j.id),
-      branch: j.branch ?? "",
-      title: j.title ?? "",
-      location: j.location ?? "",
+      branch: typeof j.branch === "string" ? j.branch : "",
+      title: typeof j.title === "string" ? j.title : "",
+      location: typeof j.location === "string" ? j.location : "",
       role: j.role ?? "",
       type: j.type ?? "",
       image: j.image || undefined, // PERBAIKAN: Hapus duplikasi
@@ -209,8 +209,9 @@ export default function Dashboard() {
       await refetch()
       setCurrentView("jobs")
 
-    } catch (err: any) {
-      const msg = err?.message || "Submit failed"
+    } catch (err) {
+      const error = err as { message?: string }
+      const msg = error?.message || "Submit failed"
       toast.error(msg)
     } finally {
       setIsSubmitting(false)
@@ -250,8 +251,9 @@ export default function Dashboard() {
       await deleteCareer(id)
       await refetch() // PERBAIKAN: Refetch setelah delete
       toast.success("Job deleted successfully")
-    } catch (err: any) {
-      const msg = err?.response?.data?.message || err?.message || "Failed to delete job"
+    } catch (err) {
+      const error = err as { response?: { data?: { message?: string } }, message?: string }
+      const msg = error?.response?.data?.message || error?.message || "Failed to delete job"
       toast.error(msg)
     }
   }

@@ -26,9 +26,12 @@ export async function GET(
       status: res.status,
       headers: { "Content-Type": "application/json" },
     });
-  } catch (err: any) {
+  } catch (err) {
     console.error("GET /career/:id error →", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Unknown error" },
+      { status: 500 }
+    );
   }
 }
 
@@ -66,9 +69,12 @@ export async function PUT(
       status: res.status,
       headers: { "Content-Type": "application/json" },
     });
-  } catch (err: any) {
+  } catch (err) {
     console.error("PUT /career/:id error →", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Unknown error" },
+      { status: 500 }
+    );
   }
 }
 
@@ -100,8 +106,11 @@ export async function DELETE(
       status: res.status,
       headers: { "Content-Type": "application/json" },
     });
-  } catch (err: any) {
+  } catch (err) {
     console.error("DELETE /career/:id error →", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Unknown error" },
+      { status: 500 }
+    );
   }
 }
