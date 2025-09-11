@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Lora, Arimo } from "next/font/google";
 import { ReactQueryProvider } from "@/providers/query-client-providers";
+import { Toaster } from "@/components/ui/sonner";
 
 
 const lora = Lora({
@@ -27,6 +28,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="font-sans antialiased">
         <ReactQueryProvider>
           {children}
+          <Toaster />
         </ReactQueryProvider>
       </body>
     </html>
