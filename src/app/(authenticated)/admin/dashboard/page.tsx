@@ -12,6 +12,7 @@ import { useCareersQuery } from "@/hooks/queries/use-get-career"
 import { useDeleteCareerMutation } from "@/hooks/queries/use-delete-career"
 import JobFormEdit from "@/components/job-edit-form"
 import JobFormCreate from "@/components/job-create-form"
+import ConfirmDeleteModal from "@/components/confirm-delete-modal"
 import Image from "next/image"
 import { toast } from "sonner"
 
@@ -24,7 +25,7 @@ type Job = {
   type: string
   requirements: string[]
   applicants?: number
-  image?: string // Ubah dari File ke string
+  image?: string
   link: string
 }
 
@@ -42,179 +43,77 @@ const mockApplicants: Applicant[] = [
   { id: "3", jobId: "2", name: "Bob Wilson", email: "bob@email.com", appliedAt: "2024-01-13" },
 ]
 
+// Utility function untuk menambahkan cache buster
+const addCacheBuster = (imageUrl: string): string => {
+  if (!imageUrl) return imageUrl
+  const separator = imageUrl.includes('?') ? '&' : '?'
+  return `${imageUrl}${separator}t=${Date.now()}`
+}
+
 export default function Dashboard() {
   const [currentView, setCurrentView] = useState<"jobs" | "create" | "applicants">("jobs")
   const [editingJob, setEditingJob] = useState<Job | null>(null)
   const [selectedJobId, setSelectedJobId] = useState<string>("all")
-
-  // form state
-  const [formData, setFormData] = useState({
-    branch: "",
-    title: "",
-    location: "",
-    role: "",
-    type: "",
-    requirements: "",
-    link: "",
-  })
-
-  // Image upload state
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const [previewUrl, setPreviewUrl] = useState<string>("")
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [imageRefreshKey, setImageRefreshKey] = useState(0)
+  
+  // State untuk Delete Modal
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+  const [jobToDelete, setJobToDelete] = useState<Job | null>(null)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   // fetch list
   const { data: apiData, isLoading, isError, error, refetch } = useCareersQuery()
   
-  // PERBAIKAN: Langsung gunakan data dari API tanpa local state jobs
+  // Langsung gunakan data dari API tanpa local state jobs
   const normalizedJobs: Job[] = useMemo(() => {
-    const arr = Array.isArray(apiData) ? apiData : (apiData?.data ?? []);
-    return arr.map((j: Record<string, unknown>) => ({
+    const arr = Array.isArray(apiData) ? apiData : (apiData?.data ?? [])
+    return arr.map((j: Job) => ({
       id: String(j.id),
-      branch: typeof j.branch === "string" ? j.branch : "",
-      title: typeof j.title === "string" ? j.title : "",
-      location: typeof j.location === "string" ? j.location : "",
+      branch: j.branch ?? "",
+      title: j.title ?? "",
+      location: j.location ?? "",
       role: j.role ?? "",
       type: j.type ?? "",
-      image: j.image || undefined, // PERBAIKAN: Hapus duplikasi
+      image: j.image ? addCacheBuster(j.image) : undefined, // Add cache buster
       applicants: j.applicants ?? 0,
       requirements: Array.isArray(j.requirements)
         ? j.requirements
         : typeof j.requirements === "string"
-          ? j.requirements.split(/\r?\n/).filter(Boolean)
+          ? (j.requirements as string).split(/\r?\n/).filter(Boolean)
           : [],
       link: j.link ?? "",
     }))
-  }, [apiData])
+  }, [apiData, imageRefreshKey]) // Add imageRefreshKey dependency
 
   // mutations
   const { mutateAsync: deleteCareer, isPending: deleting } = useDeleteCareerMutation()
 
-  // Handle image upload with preview
-  const MAX_FILE_MB = 2
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    const mb = file.size / (1024 * 1024)
-    if (mb > MAX_FILE_MB) {
-      toast.error(`File is too large (${mb.toFixed(2)} MB). Maks ${MAX_FILE_MB}MB.`)
-      return
-    }
-
-    setSelectedFile(file)
-
-    // Create preview URL
-    const reader = new FileReader()
-    reader.onload = (ev) => setPreviewUrl(ev.target?.result as string)
-    reader.readAsDataURL(file)
+  // Handle Delete Modal
+  const handleDelete = (job: Job) => {
+    setJobToDelete(job)
+    setIsDeleteModalOpen(true)
   }
 
-  // Handle form submission with FormData for file upload
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-
-    if (!formData.branch || !formData.title || !formData.location || !formData.role || !formData.type) {
-      toast.error("Please fill in all required fields")
-      return
-    }
-
-    const requirementsArray = formData.requirements
-      .split("\n")
-      .map((r) => r.trim())
-      .filter(Boolean)
-    if (!requirementsArray.length) {
-      toast.error("Please add at least one requirement")
-      return
-    }
-
-    // For new jobs, require image upload
-    if (!editingJob && !selectedFile) {
-      toast.error("Please upload an image")
-      return
-    }
-
+  const handleDeleteConfirm = async () => {
+    if (!jobToDelete) return
+    
     try {
-      setIsSubmitting(true)
-
-      // Prepare FormData for file upload
-      const formDataToSend = new FormData()
-
-      // Add file if selected
-      if (selectedFile) {
-        formDataToSend.append("file", selectedFile)
-      }
-
-      // Add other form fields
-      formDataToSend.append("branch", formData.branch)
-      formDataToSend.append("title", formData.title)
-      formDataToSend.append("location", formData.location)
-      formDataToSend.append("role", formData.role)
-      formDataToSend.append("type", formData.type)
-      formDataToSend.append("requirements", JSON.stringify(requirementsArray))
-      formDataToSend.append("link", formData.link)
-
-      // Add existing image URL if editing and no new file selected
-      if (editingJob && !selectedFile && editingJob.image) {
-        formDataToSend.append("image", editingJob.image)
-      }
-
-      let response: Response
-
-      if (editingJob) {
-        // Update existing job
-        response = await fetch(`/api/career/${editingJob.id}`, {
-          method: "PUT",
-          body: formDataToSend,
-        })
-      } else {
-        // Create new job
-        response = await fetch("/api/career", {
-          method: "POST",
-          body: formDataToSend,
-        })
-      }
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: "Request failed" }))
-        throw new Error(errorData.message || `${editingJob ? "Update" : "Create"} failed`)
-      }
-
-      const saved = await response.json()
-      console.log("Response from server:", saved) // Debug log
-
-      // PERBAIKAN: Langsung refetch data dari server, jangan update local state
-      toast.success(editingJob ? "Job updated successfully" : "Job created successfully")
-      
-      // Reset form
-      setFormData({
-        branch: "",
-        title: "",
-        location: "",
-        role: "",
-        type: "",
-        requirements: "",
-        link: "",
-      })
-      setSelectedFile(null)
-      setPreviewUrl("")
-      setEditingJob(null)
-
-      // Reset file input
-      const fileInput = document.getElementById("posterUpload") as HTMLInputElement
-      if (fileInput) fileInput.value = ""
-
-      // PERBAIKAN: Refetch data dari server untuk mendapatkan data terbaru
+      await deleteCareer(jobToDelete.id)
       await refetch()
-      setCurrentView("jobs")
-
-    } catch (err) {
-      const error = err as { message?: string }
-      const msg = error?.message || "Submit failed"
+      setImageRefreshKey(prev => prev + 1) // Force refresh images
+      toast.success("Job deleted successfully")
+      setIsDeleteModalOpen(false)
+      setJobToDelete(null)
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || "Failed to delete job"
       toast.error(msg)
-    } finally {
-      setIsSubmitting(false)
+    }
+  }
+
+  const handleDeleteCancel = () => {
+    if (!deleting) {
+      setIsDeleteModalOpen(false)
+      setJobToDelete(null)
     }
   }
 
@@ -228,58 +127,41 @@ export default function Dashboard() {
     }
   }
 
-  const handleEdit = (job: Job) => {
-    setEditingJob(job)
-    setFormData({
-      branch: job.branch,
-      title: job.title,
-      location: job.location,
-      role: job.role,
-      type: job.type,
-      requirements: job.requirements.join("\n"),
-      link: job.link,
-    })
-    // Set preview to existing image
-    setPreviewUrl(job.image || "")
-    setSelectedFile(null)
+  const handleEdit = async (job: Job) => {
+    console.log("Editing job:", job.id, "with image:", job.image)
+    
+    // Refetch data terbaru sebelum edit untuk memastikan dapat data yang paling baru
+    await refetch()
+    setImageRefreshKey(prev => prev + 1) // Force refresh images
+    
+    // Cari job dengan data terbaru
+    const latestJobData = normalizedJobs.find(j => j.id === job.id) || job
+    console.log("Latest job data for edit:", latestJobData)
+    
+    setEditingJob(latestJobData)
     setCurrentView("create")
   }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this job?")) return
-    try {
-      await deleteCareer(id)
-      await refetch() // PERBAIKAN: Refetch setelah delete
-      toast.success("Job deleted successfully")
-    } catch (err) {
-      const error = err as { response?: { data?: { message?: string } }, message?: string }
-      const msg = error?.response?.data?.message || error?.message || "Failed to delete job"
-      toast.error(msg)
-    }
+  // Callback untuk JobFormEdit
+  const handleEditSuccess = async () => {
+    console.log("Edit success, refreshing data...")
+    // Refetch data terbaru dulu
+    await refetch()
+    setImageRefreshKey(prev => prev + 1) // Force refresh images
+    setEditingJob(null)
+    setCurrentView("jobs")
+  }
+
+  // Callback untuk JobFormCreate
+  const handleCreateSuccess = async () => {
+    console.log("Create success, refreshing data...")
+    await refetch()
+    setImageRefreshKey(prev => prev + 1) // Force refresh images
+    setCurrentView("jobs")
   }
 
   const resetForm = () => {
-    setFormData({
-      branch: "",
-      title: "",
-      location: "",
-      role: "",
-      type: "",
-      requirements: "",
-      link: "",
-    })
-    setSelectedFile(null)
-    setPreviewUrl("")
     setEditingJob(null)
-    const fileInput = document.getElementById("posterUpload") as HTMLInputElement
-    if (fileInput) fileInput.value = ""
-  }
-
-  // PERBAIKAN: Callback untuk JobFormEdit
-  const handleEditSuccess = async () => {
-    setCurrentView("jobs")
-    setEditingJob(null)
-    await refetch() // Refetch data terbaru
   }
 
   return (
@@ -349,7 +231,14 @@ export default function Dashboard() {
                   <Plus className="h-4 w-4" />
                   Add New Job
                 </Button>
-                <Button variant="outline" onClick={() => refetch()} className="bg-transparent">
+                <Button 
+                  variant="outline" 
+                  onClick={async () => {
+                    await refetch()
+                    setImageRefreshKey(prev => prev + 1)
+                  }} 
+                  className="bg-transparent"
+                >
                   Refresh
                 </Button>
               </div>
@@ -365,8 +254,8 @@ export default function Dashboard() {
             {isError && (
               <Card>
                 <CardContent className="p-6">
-                  <p className="text-sm text-red-600">
-                    No Jobs found. Gagal memuat data dari API{error instanceof Error ? `: ${error.message}` : ""}.
+                  <p className="text-sm text-gray-800">
+                    No Jobs found. Please create a new job.
                   </p>
                 </CardContent>
               </Card>
@@ -375,20 +264,24 @@ export default function Dashboard() {
             {!isLoading && !isError && (
               <div className="grid gap-4">
                 {normalizedJobs.map((job) => (
-                  <Card key={`${job.id}-${job.image}`} className="border border-border">
+                  <Card key={`job-${job.id}-${imageRefreshKey}`} className="border border-border">
                     <CardHeader>
                       <div className="flex items-start justify-between">
                         <div className="flex gap-4">
                           {job.image && (
                             <div className="flex-shrink-0">
                               <Image
+                                key={`image-${job.id}-${imageRefreshKey}-${job.image}`}
                                 src={job.image}
                                 alt={`${job.title} hiring poster`}
                                 width={200}
                                 height={200}
                                 className="w-20 h-20 object-cover rounded-lg border"
-                                key={job.image} // PERBAIKAN: Force re-render saat URL berubah
-                                unoptimized // PERBAIKAN: Disable Next.js optimization untuk external images
+                                unoptimized
+                                onError={(e) => {
+                                  console.error("Image load error:", job.image)
+                                  // Fallback atau hide image on error
+                                }}
                               />
                             </div>
                           )}
@@ -410,7 +303,7 @@ export default function Dashboard() {
                           <Button variant="ghost" size="sm" onClick={() => handleEdit(job)}>
                             <Edit className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="sm" onClick={() => handleDelete(job.id)} disabled={deleting}>
+                          <Button variant="ghost" size="sm" onClick={() => handleDelete(job)}>
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
@@ -438,16 +331,14 @@ export default function Dashboard() {
             <h2 className="text-xl font-semibold mb-6">{editingJob ? "Edit Job" : "Create New Job"}</h2>
             {editingJob ? (
               <JobFormEdit
-                key={`edit-${editingJob.id}-${editingJob.image}`} // Force re-mount saat image berubah
+                key={`edit-form-${editingJob.id}-${imageRefreshKey}`}
                 job={editingJob}
-                onSuccess={handleEditSuccess} // PERBAIKAN: Gunakan callback yang tepat
+                onSuccess={handleEditSuccess}
               />
             ) : (
               <JobFormCreate
-                onSuccess={() => {
-                  setCurrentView("jobs")
-                  refetch()
-                }}
+                key={`create-form-${imageRefreshKey}`}
+                onSuccess={handleCreateSuccess}
               />
             )}
           </div>
@@ -506,6 +397,21 @@ export default function Dashboard() {
           </div>
         )}
       </main>
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmDeleteModal
+        isOpen={isDeleteModalOpen}
+        onClose={handleDeleteCancel}
+        onConfirm={handleDeleteConfirm}
+        isLoading={deleting}
+        title="Delete Job Position"
+        description="This action cannot be undone. This will permanently delete the job position and all associated data."
+        itemName={
+          jobToDelete
+            ? `${jobToDelete.title} - ${jobToDelete.branch}`
+            : undefined
+        }
+      />
     </div>
   )
 }

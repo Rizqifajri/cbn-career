@@ -22,12 +22,29 @@ type Job = {
   type: string
   requirements: string[]
   link: string
-  image?: string // URL string dari backend
+  image?: string
 }
 
 type Props = {
   job: Job
   onSuccess: () => void
+}
+
+// Utility function untuk generate unique filename
+const generateUniqueFilename = (originalName: string, jobId: string): string => {
+  const timestamp = Date.now()
+  const randomId = Math.random().toString(36).substring(2, 8)
+  const fileExtension = originalName.split('.').pop()
+  const baseName = originalName.split('.').slice(0, -1).join('.')
+  
+  return `${baseName}_${jobId}_${timestamp}_${randomId}.${fileExtension}`
+}
+
+// Utility function untuk menambahkan cache buster pada URL gambar
+const addCacheBuster = (imageUrl: string): string => {
+  if (!imageUrl) return imageUrl
+  const separator = imageUrl.includes('?') ? '&' : '?'
+  return `${imageUrl}${separator}t=${Date.now()}`
 }
 
 export default function JobFormEdit({ job, onSuccess }: Props) {
@@ -40,43 +57,71 @@ export default function JobFormEdit({ job, onSuccess }: Props) {
     requirements: job.requirements.join("\n"),
     link: job.link,
   })
-  
+
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const [previewUrl, setPreviewUrl] = useState<string>(job.image || "")
+  const [previewUrl, setPreviewUrl] = useState<string>("")
   const [hasNewImage, setHasNewImage] = useState(false)
+  const [imageKey, setImageKey] = useState(0) // Force re-render gambar
 
   const editCareerMutation = useEditCareerMutation(job.id)
 
-  // Sync previewUrl dengan job.image saat props berubah
+  // Update form data dan preview URL ketika job berubah
   useEffect(() => {
-    console.log("Job image changed:", job.image)
+    setFormData({
+      branch: job.branch,
+      title: job.title,
+      location: job.location,
+      role: job.role,
+      type: job.type,
+      requirements: job.requirements.join("\n"),
+      link: job.link,
+    })
+
+    // Set preview URL dengan cache buster untuk memastikan gambar terbaru ditampilkan
     if (job.image) {
-      setPreviewUrl(job.image)
+      const imageWithCacheBuster = addCacheBuster(job.image)
+      setPreviewUrl(imageWithCacheBuster)
+      setImageKey(prev => prev + 1) // Force re-render
+      console.log("Job image updated:", imageWithCacheBuster)
+    } else {
+      setPreviewUrl("")
     }
-  }, [job.image]) // Hapus hasNewImage dependency
+    
+    // Reset file selection state
+    setHasNewImage(false)
+    setSelectedFile(null)
+  }, [job])
 
   const MAX_FILE_MB = 2
-  
+
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    
+
     const mb = file.size / (1024 * 1024)
     if (mb > MAX_FILE_MB) {
-      alert(`File terlalu besar (${mb.toFixed(2)} MB). Maks ${MAX_FILE_MB}MB.`)
+      toast.error(`File terlalu besar (${mb.toFixed(2)} MB). Maks ${MAX_FILE_MB}MB.`)
       return
     }
-    
-    setSelectedFile(file)
+
+    // Create a new File with unique name including job ID
+    const uniqueFilename = generateUniqueFilename(file.name, job.id)
+    const uniqueFile = new File([file], uniqueFilename, { type: file.type })
+
+    setSelectedFile(uniqueFile)
     setHasNewImage(true)
-    
+
     // Buat preview URL untuk gambar baru
     const reader = new FileReader()
     reader.onload = (ev) => {
       const result = ev.target?.result as string
       setPreviewUrl(result)
+      setImageKey(prev => prev + 1) // Force re-render
     }
-    reader.readAsDataURL(file)
+    reader.readAsDataURL(file) // Use original file for preview
+    
+    console.log("New unique filename for edit:", uniqueFilename)
+    toast.success("New image selected")
   }
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -93,14 +138,15 @@ export default function JobFormEdit({ job, onSuccess }: Props) {
     // Hanya kirim image ke FormData jika ada file baru yang dipilih
     if (hasNewImage && selectedFile) {
       fd.append("image", selectedFile, selectedFile.name)
-      console.log("Image file attached:", selectedFile.name, selectedFile.size)
+      console.log("New image file attached:", selectedFile.name, selectedFile.size)
     }
 
     // Backend expect stringified array
-    fd.append("requirements", JSON.stringify(formData.requirements.split("\n").filter(req => req.trim() !== "")))
+    const requirementsArray = formData.requirements.split("\n").filter(req => req.trim() !== "")
+    fd.append("requirements", JSON.stringify(requirementsArray))
 
     // Debug: Log FormData contents
-    console.log("FormData contents:")
+    console.log("FormData contents for edit:")
     for (const [key, value] of fd.entries()) {
       if (value instanceof File) {
         console.log(key, `File: ${value.name} (${value.size} bytes)`)
@@ -110,19 +156,16 @@ export default function JobFormEdit({ job, onSuccess }: Props) {
     }
 
     editCareerMutation.mutate(fd, {
-      onSuccess: () => {
+      onSuccess: (data) => {
+        console.log("Edit success response:", data)
         toast.success("Job updated successfully")
         setHasNewImage(false)
         setSelectedFile(null)
         onSuccess()
       },
-      onError: (err: unknown) => {
-        if (err && typeof err === "object" && "message" in err) {
-          toast.error((err as { message?: string }).message || "Update failed")
-        } else {
-          toast.error("Update failed")
-        }
+      onError: (err: any) => {
         console.error("Update error:", err)
+        toast.error(err.message || "Update failed")
       },
     })
   }
@@ -135,22 +178,33 @@ export default function JobFormEdit({ job, onSuccess }: Props) {
         {previewUrl ? (
           <div className="flex items-center gap-4 mt-2">
             <Image
+              key={`preview-${imageKey}-${previewUrl}`} // Unique key untuk force re-render
               src={previewUrl}
               alt="preview"
               width={100}
               height={100}
               className="w-32 h-32 rounded-lg border object-cover"
+              unoptimized // Hindari Next.js image optimization caching
             />
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={() => document.getElementById("posterUpload")?.click()}
-            >
-              <Upload className="h-4 w-4" /> Change
-            </Button>
-            {hasNewImage && (
-              <span className="text-sm text-green-600">New image selected</span>
-            )}
+            <div className="flex flex-col gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => document.getElementById("posterUpload")?.click()}
+              >
+                <Upload className="h-4 w-4" /> Change
+              </Button>
+              {hasNewImage && selectedFile && (
+                <span className="text-sm text-green-600">
+                  New: {selectedFile.name}
+                </span>
+              )}
+              {!hasNewImage && job.image && (
+                <span className="text-sm text-blue-600">
+                  Current image
+                </span>
+              )}
+            </div>
           </div>
         ) : (
           <div
@@ -161,12 +215,12 @@ export default function JobFormEdit({ job, onSuccess }: Props) {
             <p className="text-sm">Click to upload image (max {MAX_FILE_MB}MB)</p>
           </div>
         )}
-        <input 
-          id="posterUpload" 
-          type="file" 
-          className="hidden" 
-          accept="image/*" 
-          onChange={handleImageUpload} 
+        <input
+          id="posterUpload"
+          type="file"
+          className="hidden"
+          accept="image/*"
+          onChange={handleImageUpload}
         />
       </div>
 

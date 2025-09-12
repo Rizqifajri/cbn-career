@@ -20,6 +20,13 @@ type Job = {
   link: string
 }
 
+// Utility function untuk menambahkan cache buster (sama seperti di Dashboard)
+const addCacheBuster = (imageUrl: string): string => {
+  if (!imageUrl) return imageUrl
+  const separator = imageUrl.includes('?') ? '&' : '?'
+  return `${imageUrl}${separator}t=${Date.now()}`
+}
+
 function JobDetail({ job, onApply }: { job: Job; onApply: (link?: string) => void }) {
   return (
     <div className="space-y-4">
@@ -51,6 +58,11 @@ function JobDetail({ job, onApply }: { job: Job; onApply: (link?: string) => voi
             width={640}
             height={360}
             className="w-full h-auto object-cover"
+            unoptimized
+            onError={(e) => {
+              console.error("Image load error:", job.image)
+              // Fallback atau hide image on error
+            }}
           />
         </div>
       ) : null}
@@ -79,6 +91,7 @@ export function CardJobList() {
   const router = useRouter()
   const search = useSearchParams()
   const { data, isLoading, isError } = useCareersQuery()
+  const [imageRefreshKey, setImageRefreshKey] = useState(0)
 
   const jobs: Job[] = useMemo(() => {
     if (!data) return []
@@ -90,7 +103,7 @@ export function CardJobList() {
       location: j.location,
       role: j.role,
       type: j.type,
-      image: j.image || "",
+      image: j.image ? addCacheBuster(j.image) : undefined, // Add cache buster
       link: j.link ?? "",
       requirements: Array.isArray(j.requirements)
         ? j.requirements
@@ -98,7 +111,7 @@ export function CardJobList() {
         ? (j.requirements as string).split(/\r?\n/).filter(Boolean)
         : [],
     }))
-  }, [data])
+  }, [data, imageRefreshKey]) // Add imageRefreshKey dependency
 
   const q = (search.get("q") ?? "").toLowerCase().trim()
 
@@ -145,6 +158,11 @@ export function CardJobList() {
     if (found) setSelected(found)
     else setSelected(filteredJobs[0])
   }, [search, filteredJobs])
+
+  // Force refresh images when component mounts or data changes
+  useEffect(() => {
+    setImageRefreshKey(prev => prev + 1)
+  }, [data])
 
   function selectJob(job: Job) {
     setSelected(job)
@@ -218,7 +236,7 @@ export function CardJobList() {
           const isExpanded = expandedMobile === job.id
 
           return (
-            <div id="work" key={job.id} className="space-y-0">
+            <div id="work" key={`${job.id}-${imageRefreshKey}`} className="space-y-0">
               <div className="group grid grid-cols-[1fr_88px] sm:grid-cols-[1fr_104px] md:grid-cols-[64px_1fr_88px] lg:grid-cols-[72px_1fr_104px]">
                 {/* Logo - hanya tampil mulai md */}
                 <button
@@ -305,7 +323,7 @@ export function CardJobList() {
 
       {/* RIGHT: Aside (desktop only) */}
       <aside className="hidden lg:block">
-        <JobDetail job={selectedJob} onApply={goToApply} />
+        <JobDetail key={`detail-${selectedJob.id}-${imageRefreshKey}`} job={selectedJob} onApply={goToApply} />
       </aside>
     </div>
   )
