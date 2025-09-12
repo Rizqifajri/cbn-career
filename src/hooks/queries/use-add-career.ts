@@ -15,13 +15,11 @@ async function addCareer(data: AddCareerPayload | FormData) {
   let response: Response
 
   if (data instanceof FormData) {
-    // ⬅️ Kirim langsung FormData (biar file ikut terkirim)
     response = await fetch("/api/career", {
       method: "POST",
       body: data,
     })
   } else {
-    // ⬅️ Kirim JSON (kalau tidak ada file)
     response = await fetch("/api/career", {
       method: "POST",
       headers: {
@@ -45,7 +43,6 @@ export function useAddCareerMutation() {
   return useMutation({
     mutationFn: addCareer,
     onSuccess: () => {
-      // refresh cache query career
       qc.invalidateQueries({ queryKey: ["career"] })
     },
   })
