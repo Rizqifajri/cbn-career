@@ -16,6 +16,16 @@ type Props = {
   onSuccess: () => void
 }
 
+// Utility function untuk generate unique filename
+const generateUniqueFilename = (originalName: string): string => {
+  const timestamp = Date.now()
+  const randomId = Math.random().toString(36).substring(2, 8)
+  const fileExtension = originalName.split('.').pop()
+  const baseName = originalName.split('.').slice(0, -1).join('.')
+  
+  return `${baseName}_${timestamp}_${randomId}.${fileExtension}`
+}
+
 export default function JobFormCreate({ onSuccess }: Props) {
   const [formData, setFormData] = useState({
     branch: "",
@@ -34,16 +44,25 @@ export default function JobFormCreate({ onSuccess }: Props) {
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
+    
     const mb = file.size / (1024 * 1024)
     if (mb > MAX_FILE_MB) {
       toast.error(`File terlalu besar (${mb.toFixed(2)} MB). Maks ${MAX_FILE_MB}MB.`)
       return
     }
-    setSelectedFile(file)
+    
+    // Create a new File with unique name
+    const uniqueFilename = generateUniqueFilename(file.name)
+    const uniqueFile = new File([file], uniqueFilename, { type: file.type })
+    
+    setSelectedFile(uniqueFile)
+    
     const reader = new FileReader()
     reader.onload = (ev) => setPreviewUrl(ev.target?.result as string)
-    reader.readAsDataURL(file)
+    reader.readAsDataURL(file) // Still use original file for preview
+    
     toast.success("Image uploaded successfully")
+    console.log("New unique filename:", uniqueFilename)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -56,26 +75,63 @@ export default function JobFormCreate({ onSuccess }: Props) {
     try {
       setIsSubmitting(true)
       const formDataToSend = new FormData()
-      formDataToSend.append("file", selectedFile)
+      
+      // Gunakan nama field yang konsisten dengan backend
+      formDataToSend.append("image", selectedFile, selectedFile.name) // Pastikan nama field konsisten
       formDataToSend.append("branch", formData.branch)
       formDataToSend.append("title", formData.title)
       formDataToSend.append("location", formData.location)
       formDataToSend.append("role", formData.role)
       formDataToSend.append("type", formData.type)
-      formDataToSend.append("requirements", JSON.stringify(formData.requirements.split("\n")))
+      formDataToSend.append("requirements", JSON.stringify(formData.requirements.split("\n").filter(req => req.trim())))
       formDataToSend.append("link", formData.link)
 
-      const res = await fetch("/api/career", { method: "POST", body: formDataToSend })
-      if (!res.ok) throw new Error("Failed to create job")
+      // Debug log
+      console.log("Creating job with file:", selectedFile.name)
+      for (const [key, value] of formDataToSend.entries()) {
+        if (value instanceof File) {
+          console.log(key, `File: ${value.name} (${value.size} bytes)`)
+        } else {
+          console.log(key, value)
+        }
+      }
+
+      const res = await fetch("/api/career", { 
+        method: "POST", 
+        body: formDataToSend 
+      })
+      
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ message: "Create failed" }))
+        throw new Error(errorData.message || "Failed to create job")
+      }
+
+      const result = await res.json()
+      console.log("Create response:", result)
 
       toast.success("Job created successfully")
+      
+      // Reset form
+      setFormData({
+        branch: "",
+        title: "",
+        location: "",
+        role: "",
+        type: "",
+        requirements: "",
+        link: "",
+      })
+      setSelectedFile(null)
+      setPreviewUrl("")
+      
+      // Reset file input
+      const fileInput = document.getElementById("posterUpload") as HTMLInputElement
+      if (fileInput) fileInput.value = ""
+      
       onSuccess()
-    } catch (err) {
-      if (err instanceof Error) {
-        toast.error(err.message || "Create failed")
-      } else {
-        toast.error("Create failed")
-      }
+    } catch (err: any) {
+      console.error("Create error:", err)
+      toast.error(err.message || "Create failed")
     } finally {
       setIsSubmitting(false)
     }
@@ -89,7 +145,7 @@ export default function JobFormCreate({ onSuccess }: Props) {
         {previewUrl ? (
           <div className="flex items-center gap-4 mt-2">
             <Image
-              src={previewUrl || "/placeholder.svg"}
+              src={previewUrl}
               alt="preview"
               width={100}
               height={100}
@@ -98,6 +154,9 @@ export default function JobFormCreate({ onSuccess }: Props) {
             <Button type="button" variant="outline" onClick={() => document.getElementById("posterUpload")?.click()}>
               <Upload className="h-4 w-4" /> Change
             </Button>
+            {selectedFile && (
+              <span className="text-sm text-blue-600">File: {selectedFile.name}</span>
+            )}
           </div>
         ) : (
           <div
