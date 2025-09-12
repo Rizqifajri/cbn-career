@@ -40,7 +40,7 @@ const generateUniqueFilename = (originalName: string, jobId: string): string => 
   return `${baseName}_${jobId}_${timestamp}_${randomId}.${fileExtension}`
 }
 
-// Utility function untuk menambahkan cache buster pada URL gambar
+
 const addCacheBuster = (imageUrl: string): string => {
   if (!imageUrl) return imageUrl
   const separator = imageUrl.includes('?') ? '&' : '?'
@@ -118,7 +118,7 @@ export default function JobFormEdit({ job, onSuccess }: Props) {
       setPreviewUrl(result)
       setImageKey(prev => prev + 1) // Force re-render
     }
-    reader.readAsDataURL(file) // Use original file for preview
+    reader.readAsDataURL(file) 
     
     console.log("New unique filename for edit:", uniqueFilename)
     toast.success("New image selected")
@@ -163,9 +163,13 @@ export default function JobFormEdit({ job, onSuccess }: Props) {
         setSelectedFile(null)
         onSuccess()
       },
-      onError: (err: any) => {
+      onError: (err: unknown) => {
+        if (err && typeof err === "object" && "message" in err) {
+          toast.error((err as { message?: string }).message || "Update failed")
+        } else {
+          toast.error("Update failed")
+        }
         console.error("Update error:", err)
-        toast.error(err.message || "Update failed")
       },
     })
   }
@@ -178,13 +182,13 @@ export default function JobFormEdit({ job, onSuccess }: Props) {
         {previewUrl ? (
           <div className="flex items-center gap-4 mt-2">
             <Image
-              key={`preview-${imageKey}-${previewUrl}`} // Unique key untuk force re-render
+              key={`preview-${imageKey}-${previewUrl}`} 
               src={previewUrl}
               alt="preview"
               width={100}
               height={100}
               className="w-32 h-32 rounded-lg border object-cover"
-              unoptimized // Hindari Next.js image optimization caching
+              unoptimized 
             />
             <div className="flex flex-col gap-2">
               <Button

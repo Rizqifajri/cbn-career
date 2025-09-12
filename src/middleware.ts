@@ -7,7 +7,6 @@ const LOGIN_PATH = "auth/login"
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
 
-  // Lewatkan file statis, _next, dan API tanpa cek
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/favicon") ||
@@ -16,7 +15,6 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next()
   }
 
-  // Jika user sudah login & mengakses /login → redirect ke dashboard
   if (pathname === LOGIN_PATH) {
     const token = req.cookies.get("session")?.value
     if (token && (await verifyToken(token))) {
@@ -27,13 +25,12 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next()
   }
 
-  // Proteksi semua path yang diawali /admin
   if (pathname.startsWith(PROTECTED_PREFIX)) {
     const token = req.cookies.get("session")?.value
     if (!token || !(await verifyToken(token))) {
       const url = req.nextUrl.clone()
       url.pathname = LOGIN_PATH
-      url.searchParams.set("next", pathname) // optional: redirect kembali setelah login
+      url.searchParams.set("next", pathname) 
       return NextResponse.redirect(url)
     }
   }
@@ -51,7 +48,6 @@ async function verifyToken(token: string) {
   }
 }
 
-// Hanya jalankan middleware untuk path berikut
 export const config = {
   matcher: ["/admin/:path*", "/login"],
 }

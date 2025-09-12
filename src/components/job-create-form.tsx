@@ -76,8 +76,7 @@ export default function JobFormCreate({ onSuccess }: Props) {
       setIsSubmitting(true)
       const formDataToSend = new FormData()
       
-      // Gunakan nama field yang konsisten dengan backend
-      formDataToSend.append("image", selectedFile, selectedFile.name) // Pastikan nama field konsisten
+      formDataToSend.append("image", selectedFile, selectedFile.name) 
       formDataToSend.append("branch", formData.branch)
       formDataToSend.append("title", formData.title)
       formDataToSend.append("location", formData.location)
@@ -129,9 +128,14 @@ export default function JobFormCreate({ onSuccess }: Props) {
       if (fileInput) fileInput.value = ""
       
       onSuccess()
-    } catch (err: any) {
-      console.error("Create error:", err)
-      toast.error(err.message || "Create failed")
+    } catch (err) {
+      if (err instanceof Error) {
+        console.error("Create error:", err)
+        toast.error(err.message || "Create failed")
+      } else {
+        console.error("Create error:", err)
+        toast.error("Create failed")
+      }
     } finally {
       setIsSubmitting(false)
     }

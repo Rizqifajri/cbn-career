@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -104,9 +104,16 @@ export default function Dashboard() {
       toast.success("Job deleted successfully")
       setIsDeleteModalOpen(false)
       setJobToDelete(null)
-    } catch (err: any) {
-      const msg = err?.response?.data?.message || err?.message || "Failed to delete job"
-      toast.error(msg)
+    } catch (err) {
+      let msg = "Failed to delete job";
+      if (err && typeof err === "object") {
+        if ("response" in err && err.response && typeof err.response === "object" && "data" in err.response && err.response.data && typeof err.response.data === "object" && "message" in err.response.data) {
+          msg = (err.response.data as { message?: string }).message || msg;
+        } else if ("message" in err && typeof err.message === "string") {
+          msg = err.message;
+        }
+      }
+      toast.error(msg);
     }
   }
 
